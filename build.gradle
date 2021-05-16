@@ -18,9 +18,11 @@ allprojects {
 	repositories {
 		mavenCentral()
 		if (version.contains('-')) {
+
 			maven { url "https://repo.spring.io/milestone" }
 		}
 		if (version.endsWith('-SNAPSHOT')) {
+
 			maven { url "https://repo.spring.io/snapshot" }
 		}
 	}
@@ -29,3 +31,4 @@ allprojects {
 		resolutionStrategy.cacheChangingModulesFor 0, "minutes"
 	}
 }
+
