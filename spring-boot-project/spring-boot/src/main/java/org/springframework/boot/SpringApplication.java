@@ -276,23 +276,57 @@ public class SpringApplication {
 	 * @see #run(Class, String[])
 	 * @see #setSources(Set)
 	 *
-	 SpringBoot实例化 , 即
-	  	1. primarySources这个即传入进来的主类的信息
-	 	2. resourceLoader这个是类加载器,但是传入的是null
+	 	SpringBoot实例化,干了这么几件事
+	  		1. resourceLoader 默认情况,传入的为null
+	 		2. primarySources 传入的是一些解析后的启动参数
+	 		3. 根据类加载器加载的类信息 , 推倒项目的类型
+				1). 如果存在 DispatcherHandler 且不存在 DispatcherServlet 则是REACTIVE
+				2). 如果不存在ConfigurableWebApplicationContext 和 Servlet  则是NONE
+				3). 否则则是SERVLET
+	 		4.getSpringFactoriesInstances() 方法
+				1). 获取类加载器
+				2). 根据类加载器的类型,获取META-INF/spring.factories文件
+				3). 获取里面的配置项,封装成一个Properties
+				4). 缓存到SpringFactoriesLoader  ->  Map<ClassLoader, Map<String, List<String>>> 的一个Map之中
+				5). 根据传入KEY的type类型,获取不同的配置项信息
+			5. 拿到所有配置了ApplicationContextInitializer的KEY
+			6. 拿到所有配置了ApplicationListener的KEY
+	 		7. 获取主类的信息
 	 */
 	@SuppressWarnings({ "unchecked", "rawtypes" })
 	public SpringApplication(ResourceLoader resourceLoader, Class<?>... primarySources) {
+		// 传入的为null
 		this.resourceLoader = resourceLoader;
 		Assert.notNull(primarySources, "PrimarySources must not be null");
+		//传入的为一些参数
 		this.primarySources = new LinkedHashSet<>(Arrays.asList(primarySources));
+		/*
+		1. 根据类加载器加载的类信息 , 推倒项目的类型
+			1). 如果存在 DispatcherHandler 且不存在 DispatcherServlet 则是REACTIVE
+			2). 如果不存在ConfigurableWebApplicationContext 和 Servlet  则是NONE
+			3). 否则则是SERVLET
+		 */
 		this.webApplicationType = WebApplicationType.deduceFromClasspath();
+		/*
+		getSpringFactoriesInstances() 方法
+			1. 获取类加载器
+			2. 根据类加载器的类型,获取META-INF/spring.factories文件
+			3. 获取里面的配置项,封装成一个Properties
+			4. 缓存到SpringFactoriesLoader  ->  Map<ClassLoader, Map<String, List<String>>> 的一个Map之中
+			5. 根据传入KEY的type类型,获取不同的配置项信息
+		 */
 		this.bootstrappers = new ArrayList<>(getSpringFactoriesInstances(Bootstrapper.class));
 		//初始化加载
 		setInitializers((Collection) getSpringFactoriesInstances(ApplicationContextInitializer.class));
+
 		setListeners((Collection) getSpringFactoriesInstances(ApplicationListener.class));
+		// 获取到主类的信息
 		this.mainApplicationClass = deduceMainApplicationClass();
 	}
 
+	/**
+	 * 获取主类的信息
+	 */
 	private Class<?> deduceMainApplicationClass() {
 		try {
 			StackTraceElement[] stackTrace = new RuntimeException().getStackTrace();
@@ -452,10 +486,24 @@ public class SpringApplication {
 		return getSpringFactoriesInstances(type, new Class<?>[] {});
 	}
 
+	/**
+		 1. 获取类加载器
+		 2. 根据类加载器的类型,获取META-INF/spring.factories文件
+		 3. 获取里面的配置项,封装成一个Properties
+		 4. 缓存到SpringFactoriesLoader  ->  Map<ClassLoader, Map<String, List<String>>> 的一个Map之中
+	 	 5. 根据传入KEY的type类型,获取不同的配置项信息
+	 * @param type KEY的类型
+	 * @param parameterTypes 类加载器信息
+	 * @param args 启动参数
+	 * @return
+	 */
 	private <T> Collection<T> getSpringFactoriesInstances(Class<T> type, Class<?>[] parameterTypes, Object... args) {
-		// 获取类加载器
+		//
 		ClassLoader classLoader = getClassLoader();
 		// Use names and ensure unique to protect against duplicates
+		/*
+
+		 */
 		Set<String> names = new LinkedHashSet<>(SpringFactoriesLoader.loadFactoryNames(type, classLoader));
 		List<T> instances = createSpringFactoriesInstances(type, parameterTypes, classLoader, args, names);
 		AnnotationAwareOrderComparator.sort(instances);
