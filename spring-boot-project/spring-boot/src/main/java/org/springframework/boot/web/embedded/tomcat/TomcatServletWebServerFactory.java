@@ -176,9 +176,29 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		}
 		return lifecycleListeners;
 	}
-
+	/** description: 这个方法会创建一个Web容器,例如使用Tomcat容器,则默认创建的是一个Tomcat
+	 	1. new Tomcat() 创建一个Tomcat对象
+	 	2. 设置一些Tomcat容器的配置信息
+	 	3. tomcat.getService().addConnector(additionalConnector) 加入的是一些端口号等配置信息
+	 	4. prepareContext() 配置tomcat的基础信息
+	 		1). 设置编码信息
+	 		2). 设置tomcat需要加载的哪些jar包   如spring-boot-*.jar
+	 		3). 设置类加载器 TomcatEmbeddedWebappClassLoader
+	 		4). 配置tomcat的默认servlet,并且将默认拦截路径设置为 /
+	 		5). 配置jsp和jasp
+	 		6). 初始化参数
+	 		7). 配置上下文参数
+	 		8). 如果有需要,初始化jersey
+	 	5. getTomcatWebServer() 初始化TomcatWebServer容器,并且启动tomcat
+	 * @param initializers
+	 * @return: org.springframework.boot.web.server.WebServer
+	 * @Author: zeryts
+	 * @email: hezitao@agree.com
+	 * @Date: 2021/5/19 8:27
+	 */
 	@Override
 	public WebServer getWebServer(ServletContextInitializer... initializers) {
+
 		if (this.disableMBeanRegistry) {
 			Registry.disableRegistry();
 		}
@@ -205,7 +225,21 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 			engine.getPipeline().addValve(valve);
 		}
 	}
-
+	/** description: 配置tomcat的基础信息
+	 * 1. 设置编码信息
+	 * 2. 设置tomcat需要加载的哪些jar包   如spring-boot-*.jar
+	 * 3. 设置类加载器 TomcatEmbeddedWebappClassLoader
+	 * 4. 配置tomcat的默认servlet,并且将默认拦截路径设置为 /
+	 * 5. 配置jsp和jasp
+	 * 6. 初始化参数
+	 * 7. 配置上下文参数
+	 * 8. 如果有需要,初始化jersey
+	 *
+	 * @return: void
+	 * @Author: zeryts
+	 * @email: hezitao@agree.com
+	 * @Date: 2021/5/19 8:55
+	 */
 	protected void prepareContext(Host host, ServletContextInitializer[] initializers) {
 		File documentRoot = getValidDocumentRoot();
 		TomcatEmbeddedContext context = new TomcatEmbeddedContext();
@@ -220,6 +254,7 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		context.addLifecycleListener(new FixContextListener());
 		context.setParentClassLoader((this.resourceLoader != null) ? this.resourceLoader.getClassLoader()
 				: ClassUtils.getDefaultClassLoader());
+		//设置编码信息
 		resetDefaultLocaleMapping(context);
 		addLocaleMappings(context);
 		try {
@@ -228,21 +263,28 @@ public class TomcatServletWebServerFactory extends AbstractServletWebServerFacto
 		catch (NoSuchMethodError ex) {
 			// Tomcat is < 8.5.39. Continue.
 		}
+		// 这里设置tomcat需要加载的哪些jar包   如spring-boot-*.jar
 		configureTldPatterns(context);
 		WebappLoader loader = new WebappLoader();
+		//设置类加载器
 		loader.setLoaderClass(TomcatEmbeddedWebappClassLoader.class.getName());
 		loader.setDelegate(true);
 		context.setLoader(loader);
 		if (isRegisterDefaultServlet()) {
+			// 配置tomcat的默认servlet,并且将默认拦截路径设置为 /
 			addDefaultServlet(context);
 		}
 		if (shouldRegisterJspServlet()) {
+			// 配置jsp
 			addJspServlet(context);
+			//配置jasp
 			addJasperInitializer(context);
 		}
 		context.addLifecycleListener(new StaticResourceConfigurer(context));
+		//初始化参数
 		ServletContextInitializer[] initializersToUse = mergeInitializers(initializers);
 		host.addChild(context);
+		//配置上下文参数
 		configureContext(context, initializersToUse);
 		postProcessContext(context);
 	}
